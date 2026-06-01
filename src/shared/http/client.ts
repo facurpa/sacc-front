@@ -1,5 +1,4 @@
-import { IPublicClientApplication } from '@azure/msal-browser';
-import { ApiError, UnauthorizedError } from '@/shared/errors';
+import { ApiError } from '@/shared/errors';
 import { env } from '@/shared/config/env';
 
 export interface HttpClientOptions {
@@ -11,29 +10,8 @@ export interface HttpClientOptions {
 export class HttpClient {
   private baseUrl: string;
 
-  constructor(private msalInstance: IPublicClientApplication) {
+  constructor() {
     this.baseUrl = env.NEXT_PUBLIC_API_BASE_URL;
-  }
-
-  private async getAccessToken(): Promise<string> {
-    try {
-      const accounts = this.msalInstance.getAllAccounts();
-      if (!accounts || accounts.length === 0) {
-        throw new UnauthorizedError('No authenticated user');
-      }
-
-      const tokenRequest = {
-        scopes: ['api://' + env.NEXT_PUBLIC_AZURE_CLIENT_ID + '/.default'],
-        account: accounts[0],
-      };
-
-      const response = await this.msalInstance.acquireTokenSilent(tokenRequest);
-      return response.accessToken;
-    } catch (error) {
-      throw new UnauthorizedError(
-        error instanceof Error ? error.message : 'Failed to acquire token'
-      );
-    }
   }
 
   private buildUrl(path: string, params?: Record<string, string>): string {
@@ -64,15 +42,13 @@ export class HttpClient {
   }
 
   async get<T>(path: string, options?: HttpClientOptions): Promise<T> {
-    const token = await this.getAccessToken();
-
     const response = await fetch(this.buildUrl(path, options?.params), {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...options?.headers,
       },
+      credentials: 'include',
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
@@ -80,16 +56,14 @@ export class HttpClient {
   }
 
   async post<T>(path: string, data?: unknown, options?: HttpClientOptions): Promise<T> {
-    const token = await this.getAccessToken();
-
     const response = await fetch(this.buildUrl(path), {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...options?.headers,
       },
       body: data ? JSON.stringify(data) : undefined,
+      credentials: 'include',
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
@@ -97,16 +71,14 @@ export class HttpClient {
   }
 
   async put<T>(path: string, data?: unknown, options?: HttpClientOptions): Promise<T> {
-    const token = await this.getAccessToken();
-
     const response = await fetch(this.buildUrl(path), {
       method: 'PUT',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...options?.headers,
       },
       body: data ? JSON.stringify(data) : undefined,
+      credentials: 'include',
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
@@ -114,18 +86,18 @@ export class HttpClient {
   }
 
   async delete<T>(path: string, options?: HttpClientOptions): Promise<T> {
-    const token = await this.getAccessToken();
-
     const response = await fetch(this.buildUrl(path, options?.params), {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...options?.headers,
       },
+      credentials: 'include',
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
     return this.handleResponse<T>(response);
   }
 }
+
+export const httpClient = new HttpClient();

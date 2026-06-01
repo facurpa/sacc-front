@@ -14,8 +14,6 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@azure/msal-browser": "^5.11.0",
-    "@azure/msal-react": "^5.4.2",
     "@tanstack/react-query": "^5.100.14",
     "@tanstack/react-table": "^8.21.3",
     "@tiptap/react": "^3.23.6",

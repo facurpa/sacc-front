@@ -1,0 +1,16 @@
+Scripts Prontos:
+
+npm run dev — Dev server
+npm run build → ✓ Production build bem-sucedida
+npm run type-check → ✓ TS strict
+npm run lint → ✓ ESLint + Prettier
+npm test → ✓ Vitest (2 tests passando)
+Arquivos Principais:
+
+CLAUDE.md — Guia arquitetural para próximas sessões
+README.md — Instruções setup e plano incremental
+.env.example — Template de variáveis de ambiente
+src/shared/auth/msal.ts — Configuração Azure AD
+src/shared/http/client.ts — HTTP client com token bearer
+src/shared/config/env.ts — Validação Zod de env
+vitest.config.ts + vitest.setup.ts — Testes configurados com MSW

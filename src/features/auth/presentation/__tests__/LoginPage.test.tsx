@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { server } from '@/shared/http/mocks/server';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, delay } from 'msw';
 import LoginPage from '@/app/login/page';
 import { env } from '@/shared/config/env';
 
@@ -52,13 +52,17 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /entrar/i })).toBeInTheDocument();
   });
 
-  it('should show validation error for invalid email', async () => {
+  it('should show validation error for invalid email on submit', async () => {
     const user = userEvent.setup();
     render(<LoginPage />, { wrapper: createWrapper() });
 
     const emailInput = screen.getByLabelText('Usuário');
+    const passwordInput = screen.getByLabelText('Senha');
+    const submitButton = screen.getByRole('button', { name: /entrar/i });
+
     await user.type(emailInput, 'invalid-email');
-    await user.tab();
+    await user.type(passwordInput, 'password123');
+    await user.click(submitButton);
 
     await waitFor(() => {
       expect(screen.getByText('Usuário deve ser um e-mail corporativo válido')).toBeInTheDocument();
@@ -104,6 +108,14 @@ describe('LoginPage', () => {
 
   it('should disable form during submission', async () => {
     const user = userEvent.setup();
+
+    server.use(
+      http.post(`${env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`, async () => {
+        await delay(150);
+        return HttpResponse.json({ id: 'user-1', email: 'user@company.com', name: 'Test User' });
+      })
+    );
+
     render(<LoginPage />, { wrapper: createWrapper() });
 
     const emailInput = screen.getByLabelText('Usuário') as HTMLInputElement;
@@ -114,14 +126,11 @@ describe('LoginPage', () => {
     await user.type(passwordInput, 'password123');
     await user.click(submitButton);
 
-    // Check button text changes
     await waitFor(() => {
       expect(submitButton).toHaveTextContent('Entrando...');
+      expect(emailInput.disabled).toBe(true);
+      expect(passwordInput.disabled).toBe(true);
     });
-
-    // Check inputs are disabled
-    expect(emailInput.disabled).toBe(true);
-    expect(passwordInput.disabled).toBe(true);
   });
 
   it('should clear field errors when user starts typing', async () => {

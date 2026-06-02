@@ -1,10 +1,8 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { ZodError } from 'zod';
-
 import { Button } from '@/shared/ui/components/button';
 import { Input } from '@/shared/ui/components/input';
 import { Label } from '@/shared/ui/components/label';
@@ -38,14 +36,14 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if already authenticated
-  if (status === 'authenticated') {
-    router.push('/dashboard');
-    return null;
-  }
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.push('/dashboard');
+    }
+  }, [status, router]);
 
-  // Show loading while checking session
-  if (status === 'loading') {
+  // Show loading while checking session or redirecting
+  if (status === 'loading' || status === 'authenticated') {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-50">
         <Card className="w-full max-w-md">
@@ -71,21 +69,20 @@ export default function LoginPage() {
   };
 
   const validateForm = (): boolean => {
-    try {
-      LoginFormSchema.parse(formData);
+    const result = LoginFormSchema.safeParse(formData);
+    if (result.success) {
       setErrors({});
       return true;
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const fieldErrors: FormErrors = {};
-        error.issues.forEach((issue) => {
-          const field = issue.path[0] as string;
-          fieldErrors[field as keyof FormErrors] = issue.message;
-        });
-        setErrors(fieldErrors);
-      }
-      return false;
     }
+    const fieldErrors: FormErrors = {};
+    result.error.issues.forEach((issue) => {
+      const field = issue.path[0] as keyof FormErrors;
+      if (!fieldErrors[field]) {
+        fieldErrors[field] = issue.message;
+      }
+    });
+    setErrors(fieldErrors);
+    return false;
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -128,7 +125,7 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {/* Email Field */}
             <div className="space-y-2">
               <Label htmlFor="email">Usuário</Label>

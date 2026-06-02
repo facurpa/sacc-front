@@ -28,6 +28,7 @@ export function middleware(request: NextRequest): NextResponse {
   // Authenticated user trying to access login → send to dashboard
   if (pathname === '/login' && hasSession) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
+    console.log('Authenticated user trying to access login → send to dashboard');
   }
 
   // Unauthenticated user accessing a protected route

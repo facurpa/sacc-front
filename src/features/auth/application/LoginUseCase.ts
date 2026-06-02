@@ -12,7 +12,7 @@ export const performLogin = async (credentials: LoginFormInput): Promise<Session
     return user;
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      throw new Error('Usuário ou senha incorretos');
+      throw new Error('Usuário ou senha incorretos');      
     }
     throw new Error('Falha ao conectar. Tente novamente.');
   }

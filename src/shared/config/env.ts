@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  NEXT_PUBLIC_API_BASE_URL: z.string().url('API Base URL must be a valid URL'),
-  NEXT_PUBLIC_APP_VERSION: z.string().default('0.1.0'),
+  NEXT_PUBLIC_API_BASE_URL: z.string().url('API Base URL must be a valid URL'), //Ajustar 
+  NEXT_PUBLIC_APP_VERSION: z.string().default('0.1.0'),//Ajustar 
   NEXT_PUBLIC_SESSION_TIMEOUT_MINUTES: z.coerce.number().default(30),
 });
 

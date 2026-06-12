@@ -1,5 +1,9 @@
+import { useMemo } from 'react';
+import { useMsal } from '@azure/msal-react';
+import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { ApiError } from '@/shared/errors';
 import { env } from '@/shared/config/env';
+import { apiTokenRequest } from '@/shared/auth/msal';
 
 export interface HttpClientOptions {
   headers?: Record<string, string>;
@@ -7,11 +11,15 @@ export interface HttpClientOptions {
   timeout?: number;
 }
 
+export type GetToken = () => Promise<string | null>;
+
 export class HttpClient {
   private baseUrl: string;
+  private getToken: GetToken;
 
-  constructor() {
+  constructor(getToken: GetToken) {
     this.baseUrl = env.NEXT_PUBLIC_API_BASE_URL;
+    this.getToken = getToken;
   }
 
   private buildUrl(path: string, params?: Record<string, string>): string {
@@ -24,6 +32,20 @@ export class HttpClient {
     }
 
     return url.toString();
+  }
+
+  private async buildHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...extra,
+    };
+
+    const token = await this.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return headers;
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
@@ -44,11 +66,7 @@ export class HttpClient {
   async get<T>(path: string, options?: HttpClientOptions): Promise<T> {
     const response = await fetch(this.buildUrl(path, options?.params), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      credentials: 'include',
+      headers: await this.buildHeaders(options?.headers),
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
@@ -58,12 +76,8 @@ export class HttpClient {
   async post<T>(path: string, data?: unknown, options?: HttpClientOptions): Promise<T> {
     const response = await fetch(this.buildUrl(path), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers: await this.buildHeaders(options?.headers),
       body: data ? JSON.stringify(data) : undefined,
-      credentials: 'include',
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
@@ -73,12 +87,8 @@ export class HttpClient {
   async put<T>(path: string, data?: unknown, options?: HttpClientOptions): Promise<T> {
     const response = await fetch(this.buildUrl(path), {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers: await this.buildHeaders(options?.headers),
       body: data ? JSON.stringify(data) : undefined,
-      credentials: 'include',
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
@@ -88,11 +98,7 @@ export class HttpClient {
   async delete<T>(path: string, options?: HttpClientOptions): Promise<T> {
     const response = await fetch(this.buildUrl(path, options?.params), {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      credentials: 'include',
+      headers: await this.buildHeaders(options?.headers),
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
@@ -100,4 +106,30 @@ export class HttpClient {
   }
 }
 
-export const httpClient = new HttpClient();
+export function createHttpClient(getToken: GetToken): HttpClient {
+  return new HttpClient(getToken);
+}
+
+export function useHttpClient(): HttpClient {
+  const { instance } = useMsal();
+
+  return useMemo(() => {
+    const getToken: GetToken = async () => {
+      const accounts = instance.getAllAccounts();
+      const account = instance.getActiveAccount() ?? accounts[0];
+      if (!account) return null;
+
+      try {
+        const result = await instance.acquireTokenSilent({ ...apiTokenRequest, account });
+        return result.accessToken;
+      } catch (err) {
+        if (err instanceof InteractionRequiredAuthError) {
+          await instance.acquireTokenRedirect({ ...apiTokenRequest, account });
+        }
+        return null;
+      }
+    };
+
+    return createHttpClient(getToken);
+  }, [instance]);
+}

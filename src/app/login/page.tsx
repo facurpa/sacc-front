@@ -1,11 +1,10 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useMsal, useIsAuthenticated } from '@azure/msal-react';
+import { InteractionStatus } from '@azure/msal-browser';
 import { Button } from '@/shared/ui/components/button';
-import { Input } from '@/shared/ui/components/input';
-import { Label } from '@/shared/ui/components/label';
 import {
   Card,
   CardContent,
@@ -13,37 +12,27 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/ui/components/card';
-import { useSession } from '@/shared/auth/hooks';
-import { LoginFormSchema, LoginFormInput } from '@/features/auth/domain/LoginSchema';
-import { performLogin } from '@/features/auth/application/LoginUseCase';
-
-interface FormErrors {
-  email?: string;
-  password?: string;
-  submit?: string;
-}
+import { apiTokenRequest } from '@/shared/auth/msal';
 
 export default function LoginPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const { status } = useSession();
+  const searchParams = useSearchParams();
+  const { instance, inProgress } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
 
-  const [formData, setFormData] = useState<LoginFormInput>({
-    email: '',
-    password: '',
-  });
-
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading =
+    inProgress === InteractionStatus.Startup ||
+    inProgress === InteractionStatus.HandleRedirect ||
+    inProgress === InteractionStatus.AcquireToken;
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.push('/dashboard');
+    if (isAuthenticated) {
+      const returnTo = searchParams.get('returnTo') ?? '/dashboard';
+      router.push(returnTo);
     }
-  }, [status, router]);
+  }, [isAuthenticated, router, searchParams]);
 
-  // Show loading while checking session or redirecting
-  if (status === 'loading' || status === 'authenticated') {
+  if (isLoading || isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-50">
         <Card className="w-full max-w-md">
@@ -59,56 +48,8 @@ export default function LoginPage() {
     );
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear field error on change
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const result = LoginFormSchema.safeParse(formData);
-    if (result.success) {
-      setErrors({});
-      return true;
-    }
-    const fieldErrors: FormErrors = {};
-    result.error.issues.forEach((issue) => {
-      const field = issue.path[0] as keyof FormErrors;
-      if (!fieldErrors[field]) {
-        fieldErrors[field] = issue.message;
-      }
-    });
-    setErrors(fieldErrors);
-    return false;
-  };
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoading(true);
-    setErrors((prev) => ({ ...prev, submit: undefined }));
-
-    try {
-      await performLogin(formData);
-      // Invalidate session cache to trigger re-fetch
-      queryClient.invalidateQueries({ queryKey: ['session'] });
-      // Redirect will happen automatically when useSession detects authenticated status
-      router.push('/dashboard');
-    } catch (error) {
-      setErrors((prev) => ({
-        ...prev,
-        submit: error instanceof Error ? error.message : 'Falha ao conectar. Tente novamente.',
-      }));
-    } finally {
-      setIsLoading(false);
-    }
+  const handleLogin = () => {
+    instance.loginRedirect(apiTokenRequest);
   };
 
   return (
@@ -120,80 +61,22 @@ export default function LoginPage() {
             Sistema de Alertas Contábeis Cast
           </CardDescription>
           <p className="text-xs text-neutral-500 pt-2">
-            Faça login com suas credenciais corporativas
+            Acesse com sua conta corporativa Microsoft
           </p>
         </CardHeader>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            {/* Email Field */}
-            <div className="space-y-2">
-              <Label htmlFor="email">Usuário</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="seu.email@company.com"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={isLoading}
-                autoFocus
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-              />
-              {errors.email && (
-                <p id="email-error" className="text-sm text-status-error">
-                  {errors.email}
-                </p>
-              )}
-            </div>
+        <CardContent className="space-y-4">
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            className="w-full"
+            onClick={handleLogin}
+          >
+            Entrar com conta corporativa
+          </Button>
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••"
-                value={formData.password}
-                onChange={handleChange}
-                disabled={isLoading}
-                aria-invalid={!!errors.password}
-                aria-describedby={errors.password ? 'password-error' : undefined}
-              />
-              {errors.password && (
-                <p id="password-error" className="text-sm text-status-error">
-                  {errors.password}
-                </p>
-              )}
-            </div>
-
-            {/* Submit Error */}
-            {errors.submit && (
-              <div
-                className="rounded-md bg-status-error/10 p-3 text-sm text-status-error border border-status-error/20"
-                role="alert"
-              >
-                {errors.submit}
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              isLoading={isLoading}
-              disabled={isLoading}
-              className="w-full"
-            >
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-
-          {/* Version */}
-          <p className="text-xs text-neutral-400 mt-4 text-center">SACC v1.1</p>
+          <p className="text-xs text-neutral-400 text-center">SACC v1.1</p>
         </CardContent>
       </Card>
     </div>

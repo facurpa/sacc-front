@@ -1,6 +1,8 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMsal, useIsAuthenticated, useAccount } from '@azure/msal-react';
+import { InteractionStatus } from '@azure/msal-browser';
+import { apiTokenRequest } from '@/shared/auth/msal';
 import { env } from '@/shared/config/env';
 
 export interface SessionUser {
@@ -9,65 +11,38 @@ export interface SessionUser {
   email: string | null;
 }
 
-const SESSION_QUERY_KEY = ['session'];
-const SESSION_STALE_TIME = 1000 * 60 * 5; // 5 minutes
-
-async function fetchSession(): Promise<SessionUser> {
-  const response = await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/api/auth/me`, {
-    method: 'GET',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (!response.ok) {
-    throw new Error('Unauthorized');
-  }
-
-  return response.json();
-}
-
-async function performLogout(): Promise<void> {
-  await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/api/auth/logout`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
 export const useSession = () => {
-  const queryClient = useQueryClient();
+  const { instance, inProgress } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
+  const account = useAccount();
 
-  const {
-    data: user = null,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: SESSION_QUERY_KEY,
-    queryFn: fetchSession,
-    staleTime: SESSION_STALE_TIME,
-    retry: false,
-  });
+  const isLoading =
+    inProgress === InteractionStatus.Startup ||
+    inProgress === InteractionStatus.HandleRedirect ||
+    inProgress === InteractionStatus.AcquireToken;
+
+  let user: SessionUser | null = null;
+  if (isAuthenticated && account) {
+    const claims = account.idTokenClaims as Record<string, unknown> | undefined;
+    user = {
+      id: (claims?.oid as string) ?? (claims?.sub as string) ?? account.localAccountId,
+      name: account.name ?? null,
+      email: account.username ?? null,
+    };
+  }
 
   const status: 'loading' | 'authenticated' | 'unauthenticated' = isLoading
     ? 'loading'
-    : isError
-      ? 'unauthenticated'
-      : user
-        ? 'authenticated'
-        : 'unauthenticated';
+    : isAuthenticated
+      ? 'authenticated'
+      : 'unauthenticated';
 
   const logout = async (): Promise<void> => {
-    try {
-      await performLogout();
-    } finally {
-      queryClient.setQueryData(SESSION_QUERY_KEY, null);
-      queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-    }
+    await instance.logoutRedirect({
+      postLogoutRedirectUri: env.NEXT_PUBLIC_AZURE_REDIRECT_URI,
+      ...apiTokenRequest,
+    });
   };
 
-  return {
-    user,
-    status,
-    logout,
-  };
+  return { user, status, logout };
 };

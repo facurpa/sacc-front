@@ -1,7 +1,9 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MsalProvider } from '@azure/msal-react';
+import { msalInstance } from '@/shared/auth/msal';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,5 +20,19 @@ interface ProvidersProps {
 }
 
 export function Providers({ children }: ProvidersProps) {
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  const [msalReady, setMsalReady] = useState(false);
+
+  useEffect(() => {
+    msalInstance.initialize().then(() => setMsalReady(true));
+  }, []);
+
+  if (!msalReady) {
+    return null;
+  }
+
+  return (
+    <MsalProvider instance={msalInstance}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </MsalProvider>
+  );
 }

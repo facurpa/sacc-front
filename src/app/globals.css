@@ -14,6 +14,8 @@
   /* Corporate colors: Azure + Neutrals */
   --color-brand-primary: #0078d4;
   --color-brand-hover: #106ebe;
+  --color-brand-gradient-from: #0a3d8f;
+  --color-brand-gradient-to: #1e6fc7;
   --color-neutral-50: #f9fafb;
   --color-neutral-100: #f3f4f6;
   --color-neutral-200: #e5e7eb;

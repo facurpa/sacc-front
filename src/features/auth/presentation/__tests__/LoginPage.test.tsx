@@ -35,17 +35,15 @@ describe('LoginPage', () => {
     render(<LoginPage />, { wrapper: createWrapper() });
 
     expect(screen.getByText('SACC')).toBeInTheDocument();
-    expect(screen.getByText('Sistema de Alertas Contábeis Cast')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /entrar com conta corporativa/i })
-    ).toBeInTheDocument();
+    expect(screen.getByText('Sistema de Alertas de Contas Contábeis')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /entrar com microsoft/i })).toBeInTheDocument();
   });
 
   it('calls loginRedirect with API scopes on button click', async () => {
     const user = userEvent.setup();
     render(<LoginPage />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole('button', { name: /entrar com conta corporativa/i }));
+    await user.click(screen.getByRole('button', { name: /entrar com microsoft/i }));
 
     expect(mockLoginRedirect).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -5,13 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMsal, useIsAuthenticated } from '@azure/msal-react';
 import { InteractionStatus } from '@azure/msal-browser';
 import { Button } from '@/shared/ui/components/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui/components/card';
+import { Card, CardContent } from '@/shared/ui/components/card';
 import { apiTokenRequest } from '@/shared/auth/msal';
 
 export default function LoginPage() {
@@ -34,7 +28,7 @@ export default function LoginPage() {
 
   if (isLoading || isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-50">
+      <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,var(--color-brand-gradient-from),var(--color-brand-gradient-to))]">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="flex items-center justify-center space-x-2">
@@ -53,30 +47,55 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-neutral-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-3xl font-bold text-brand-primary">SACC</CardTitle>
-          <CardDescription className="text-neutral-600">
-            Sistema de Alertas Contábeis Cast
-          </CardDescription>
-          <p className="text-xs text-neutral-500 pt-2">
-            Acesse com sua conta corporativa Microsoft
-          </p>
-        </CardHeader>
+    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,var(--color-brand-gradient-from),var(--color-brand-gradient-to))] px-4">
+      <Card className="w-full max-w-md rounded-2xl shadow-xl">
+        <CardContent className="space-y-6 p-8 sm:p-10">
+          {/* Shield Icon */}
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-primary">
+            <svg
+              className="h-8 w-8 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
 
-        <CardContent className="space-y-4">
+          {/* Title */}
+          <h1 className="text-center text-4xl font-semibold text-neutral-900">SACC</h1>
+
+          {/* Subtitle */}
+          <p className="text-center text-sm text-neutral-500">
+            Sistema de Alertas de Contas Contábeis
+          </p>
+
+          {/* Login Button */}
           <Button
             type="button"
             variant="primary"
-            size="md"
+            size="lg"
             className="w-full"
             onClick={handleLogin}
           >
-            Entrar com conta corporativa
+            Entrar com Microsoft
           </Button>
 
-          <p className="text-xs text-neutral-400 text-center">SACC v1.1</p>
+          {/* Azure AD Legend */}
+          <p className="text-center text-sm text-neutral-500">
+            Autenticação via Azure Active Directory
+          </p>
+
+          {/* Divider */}
+          <hr className="border-neutral-200" />
+
+          {/* Footer */}
+          <p className="text-center text-sm text-neutral-500">
+            Governança Corporativa • Auditabilidade • Compliance
+          </p>
         </CardContent>
       </Card>
     </div>
